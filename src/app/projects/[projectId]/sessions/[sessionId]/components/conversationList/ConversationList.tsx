@@ -299,8 +299,12 @@ const ToolCallGroup = ({ pairs }: { pairs: ToolPair[] }) => {
   );
 };
 
-export const ConversationList = ({ turns }: { turns: CodexSessionTurn[] }) => {
-  if (turns.length === 0) {
+export const ConversationList = ({ turns, search = "" }: { turns: CodexSessionTurn[]; search?: string }) => {
+  const normalizedSearch = search.trim().toLowerCase();
+  const visibleTurns = normalizedSearch
+    ? turns.filter((turn) => JSON.stringify(turn).toLowerCase().includes(normalizedSearch))
+    : turns;
+  if (visibleTurns.length === 0) {
     return (
       <div className="py-12 text-center text-muted-foreground">
         No conversation entries yet. Send a message to Codex to begin.
@@ -310,7 +314,7 @@ export const ConversationList = ({ turns }: { turns: CodexSessionTurn[] }) => {
 
   return (
     <div className="flex flex-col gap-10">
-      {turns.map((turn) => {
+      {visibleTurns.map((turn) => {
         const toolPairs = pairToolCalls(turn);
         const singlePair = toolPairs.length === 1 ? toolPairs[0] : null;
 

@@ -17,6 +17,8 @@ import { getProject } from "../service/project/getProject";
 import { getProjects } from "../service/project/getProjects";
 import { getSession } from "../service/session/getSession";
 import { getSessions } from "../service/session/getSessions";
+import { parseCodexSession } from "../service/codex/parseCodexSession";
+import { readFile } from "node:fs/promises";
 import { decodeSessionId } from "../service/session/id";
 import type { HonoAppType } from "./app";
 import { configMiddleware } from "./middleware/config.middleware";
@@ -129,6 +131,25 @@ export const routes = (app: HonoAppType) => {
         ] as const);
 
         return c.json({ project, sessions });
+      })
+      .get("/projects/:projectId/search", async (c) => {
+        const { projectId } = c.req.param();
+        const query = c.req.query("q")?.trim().toLowerCase() ?? "";
+        if (!query) return c.json({ results: [] });
+        const { sessions } = await getSessions(projectId);
+        const results = [];
+        for (const session of sessions) {
+          const content = await readFile(session.jsonlFilePath, "utf-8");
+          const parsed = parseCodexSession(content);
+          const match = parsed.entries.find((entry) =>
+            "text" in entry && typeof entry.text === "string" && entry.text.toLowerCase().includes(query),
+          );
+          if (match && "text" in match && typeof match.text === "string") {
+            const index = match.text.toLowerCase().indexOf(query);
+            results.push({ sessionId: session.id, sessionUuid: session.sessionUuid, text: match.text.slice(Math.max(0, index - 80), index + query.length + 160) });
+          }
+        }
+        return c.json({ results });
       })
 
       .get("/projects/:projectId/sessions/:sessionId", async (c) => {

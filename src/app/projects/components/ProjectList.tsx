@@ -191,7 +191,7 @@ export const ProjectList: FC = () => {
                 <p className="text-sm text-muted-foreground">
                   Last modified:{" "}
                   {project.meta.lastSessionAt
-                    ? new Date(project.meta.lastSessionAt).toLocaleString()
+                    ? new Date(project.meta.lastSessionAt).toLocaleString("en-GB")
                     : ""}
                 </p>
                 <p className="text-xs text-muted-foreground flex items-center gap-1">
@@ -226,7 +226,7 @@ export const ProjectList: FC = () => {
             <tbody className="divide-y divide-border">
               {filteredProjects.map((project) => {
                 const lastModified = project.meta.lastSessionAt
-                  ? new Date(project.meta.lastSessionAt).toLocaleString()
+                  ? new Date(project.meta.lastSessionAt).toLocaleString("en-GB")
                   : "";
 
                 return (

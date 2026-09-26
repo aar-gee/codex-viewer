@@ -25,6 +25,7 @@ import { firstCommandToTitle } from "../../../services/firstCommandToTitle";
 import { useAliveTask } from "../hooks/useAliveTask";
 import { useSession } from "../hooks/useSession";
 import { ConversationList } from "./conversationList/ConversationList";
+import { Input } from "../../../../../../components/ui/input";
 import { DiffModal } from "./diffModal";
 import { ResumeChat } from "./resumeChat/ResumeChat";
 import { SessionSidebar } from "./sessionSidebar/SessionSidebar";
@@ -61,6 +62,7 @@ export const SessionPageContent: FC<{
   const [previousTurnLength, setPreviousTurnLength] = useState(0);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isDiffModalOpen, setIsDiffModalOpen] = useState(false);
+  const [conversationSearch, setConversationSearch] = useState("");
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const hasInitialScrollRef = useRef(false);
 
@@ -218,7 +220,8 @@ export const SessionPageContent: FC<{
         >
           <main className="w-full px-4 sm:px-6 md:px-8 lg:px-12 xl:px-16 relative z-5 min-w-0">
             <SessionMetaSummary instructions={sessionMeta.instructions} />
-            <ConversationList turns={turns} />
+            <Input value={conversationSearch} onChange={(event) => setConversationSearch(event.target.value)} placeholder="Search within this session…" className="mb-4" />
+            <ConversationList turns={turns} search={conversationSearch} />
 
             {isRunningTask && (
               <div className="flex justify-start items-center py-8">

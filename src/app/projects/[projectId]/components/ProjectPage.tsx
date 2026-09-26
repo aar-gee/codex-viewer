@@ -7,6 +7,7 @@ import {
   FolderIcon,
   MessageSquareIcon,
   PlusIcon,
+  SearchIcon,
   SettingsIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -29,6 +30,7 @@ import { useConfig } from "../../../hooks/useConfig";
 import { projectQueryConfig, useProject } from "../hooks/useProject";
 import { firstCommandToTitle } from "../services/firstCommandToTitle";
 import { NewChatModal } from "./newChat/NewChatModal";
+import { Input } from "../../../../components/ui/input";
 
 export const ProjectPageContent = ({ projectId }: { projectId: string }) => {
   const {
@@ -37,6 +39,14 @@ export const ProjectPageContent = ({ projectId }: { projectId: string }) => {
   const { config } = useConfig();
   const queryClient = useQueryClient();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [results, setResults] = useState<Array<{ sessionId: string; text: string }>>([]);
+  useEffect(() => {
+    const value = search.trim();
+    if (!value) { setResults([]); return; }
+    const timer = setTimeout(() => { fetch(`/api/projects/${projectId}/search?q=${encodeURIComponent(value)}`).then((response) => response.json()).then((data: { results?: Array<{ sessionId: string; text: string }> }) => setResults(data.results ?? [])); }, 250);
+    return () => clearTimeout(timer);
+  }, [projectId, search]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: invalidate when config changed
   useEffect(() => {
@@ -87,6 +97,11 @@ export const ProjectPageContent = ({ projectId }: { projectId: string }) => {
             Conversation Sessions{" "}
             {sessions.length > 0 ? `(${sessions.length})` : ""}
           </h2>
+          <div className="relative mb-6">
+            <SearchIcon className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search across sessions…" className="pl-9" />
+          </div>
+          {results.length > 0 ? <div className="mb-6 space-y-2 rounded-lg border p-3">{results.map((result) => <Link key={result.sessionId} href={`/projects/${projectId}/sessions/${encodeURIComponent(result.sessionId)}`} className="block rounded p-2 hover:bg-muted"><div className="font-mono text-xs">{result.sessionId}</div><div className="text-sm text-muted-foreground">…{result.text}…</div></Link>)}</div> : null}
 
           {/* Filter Controls */}
           <Collapsible open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>

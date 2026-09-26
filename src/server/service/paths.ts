@@ -7,3 +7,4 @@ export const codexHistoryFilePath = resolve(
   ".codex",
   "history.jsonl",
 );
+export const piSessionsRootPath = resolve(homedir(), ".pi", "agent", "sessions");

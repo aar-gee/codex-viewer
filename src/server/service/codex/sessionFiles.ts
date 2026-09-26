@@ -3,7 +3,7 @@ import { createReadStream } from "node:fs";
 import { readdir, stat } from "node:fs/promises";
 import { basename, join } from "node:path";
 
-import { codexSessionsRootPath } from "../paths";
+import { codexSessionsRootPath, piSessionsRootPath } from "../paths";
 import { getHistoryTimestamps } from "./history";
 
 export type CodexSessionHeader = {
@@ -64,6 +64,8 @@ export const readSessionHeader = async (
 
     const parsed = JSON.parse(firstLine) as {
       type?: string;
+      id?: string;
+      cwd?: string;
       timestamp?: string;
       payload?: {
         id?: string;
@@ -73,9 +75,16 @@ export const readSessionHeader = async (
       };
     };
 
-    if (parsed.type !== "session_meta") {
-      return null;
+    if (parsed.type === "session") {
+      const session = parsed as { id?: string; cwd?: string; timestamp?: string };
+      return {
+        sessionUuid: session.id ?? null,
+        workspacePath: session.cwd ?? null,
+        startedAt: session.timestamp ?? null,
+        instructions: null,
+      };
     }
+    if (parsed.type !== "session_meta") return null;
 
     return {
       sessionUuid: parsed.payload?.id ?? null,
@@ -92,11 +101,11 @@ export const readSessionHeader = async (
 export const listCodexSessionRecords = async (): Promise<
   CodexSessionRecord[]
 > => {
-  const root = codexSessionsRootPath;
+  const roots = [codexSessionsRootPath, piSessionsRootPath];
   const records: CodexSessionRecord[] = [];
   const sessionUuidMap = new Map<string, CodexSessionRecord>();
 
-  const stack: string[] = [root];
+  const stack: string[] = [...roots];
 
   while (stack.length > 0) {
     const current = stack.pop();

@@ -164,6 +164,70 @@ export const parseCodexSession = (
     const timestamp =
       typeof parsed.timestamp === "string" ? parsed.timestamp : null;
 
+    // Pi uses a compact event format. Normalize its messages into the same
+    // conversation model used by Codex so the rest of the viewer is shared.
+    if (parsed.type === "session") {
+      const session = parsed as unknown as { id?: string; cwd?: string; timestamp?: string };
+      if (session) {
+        sessionMeta = {
+          ...sessionMeta,
+          sessionUuid: session.id ?? sessionMeta.sessionUuid,
+          cwd: session.cwd ?? sessionMeta.cwd,
+          timestamp: session.timestamp ?? timestamp,
+        };
+      }
+      continue;
+    }
+
+    if (parsed.type === "message") {
+      const event = parsed as unknown as {
+        message?: {
+          role?: unknown;
+          content?: unknown;
+          toolCallId?: unknown;
+          toolName?: unknown;
+        };
+        role?: unknown;
+        content?: unknown;
+        toolCallId?: unknown;
+        toolName?: unknown;
+      };
+      const message = event.message ?? event;
+      if (!message || typeof message !== "object") continue;
+      const turn = getCurrentTurn();
+      const role = message.role;
+      const content = Array.isArray(message.content) ? message.content : [];
+      const text = extractTextFromContent(content);
+      if (role === "user") {
+        const userTurn = turn.userMessage ? startNewTurn() : turn;
+        if (text) {
+          userTurn.userMessage = { id: createEntryId("user"), text, timestamp, source: "response_item" };
+          entries.push({ type: "user", id: userTurn.userMessage.id, text, timestamp, source: "response_item" });
+        }
+      } else if (role === "assistant") {
+        if (text) {
+          const assistant = { id: createEntryId("assistant"), text, timestamp, source: "response_item" as const };
+          turn.assistantMessages.push(assistant);
+          entries.push({ type: "assistant", ...assistant });
+        }
+        for (const item of content) {
+          if (typeof item !== "object" || item === null || (item as { type?: unknown }).type !== "toolCall") continue;
+          const tool = item as { id?: unknown; name?: unknown; arguments?: unknown };
+          const callId = typeof tool.id === "string" ? tool.id : null;
+          const toolCall = { id: createEntryId("tool-call"), name: typeof tool.name === "string" ? tool.name : "tool", arguments: typeof tool.arguments === "string" ? tool.arguments : JSON.stringify(tool.arguments ?? null), callId, timestamp };
+          turn.toolCalls.push(toolCall);
+          entries.push({ type: "tool-call", ...toolCall });
+          callIdToTurn.set(callId ?? toolCall.id, turn);
+        }
+      } else if (role === "toolResult") {
+        const callId = typeof message.toolCallId === "string" ? message.toolCallId : null;
+        const result = { id: createEntryId("tool-result"), callId, output: text || JSON.stringify(content), timestamp };
+        turn.toolResults.push(result);
+        entries.push({ type: "tool-result", ...result });
+      }
+      continue;
+    }
+
     if (parsed.type === "session_meta") {
       if (parsed.payload && typeof parsed.payload === "object") {
         const payload = parsed.payload as Partial<{
